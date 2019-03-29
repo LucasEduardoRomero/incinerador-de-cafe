@@ -1,0 +1,296 @@
+<!-- 
+	Exemplo retirado de: https://github.com/photonstorm/phaser-examples/blob/master/examples/arcade%20physics/asteroids%20movement.js
+-->
+<html lang="pt-br">
+	<head>
+		<title>incinerador de café</title>
+		<meta charset="utf-8" />
+	</head>
+	<body>
+		<div id="tela"></div>
+		<script src="../phaser2/phaser.min.js"></script>
+		<script>
+
+			/*
+				A classe Game contêm basicamente "todo o jogo"
+				No método construtor passamos os seguintes parâmetros: largura, altura, 'engine' (Canvas ou WebGL), elemento HTML, e estados
+			*/
+
+			var game = new Phaser.Game(862, 600, Phaser.CANVAS, 'tela', { preload: preload, create: create, update: update, render: render });
+
+			function preload() {
+			
+				//game.load.bitmapFont('desyrel', '../assets/bitmapFonts/desyrel.png', 'assets/fonts/bitmapFonts/desyrel.xml');
+
+				game.load.image('background', '../assets/background/farm.jpg');
+				game.load.image('cafe', '../assets/sprites/cafe.png');
+				game.load.image('balde', '../assets/sprites/balde.png');
+				game.load.image('barra_preta', '../assets/sprites/barra-preta.png');
+				game.load.image('tela_preta','../assets/sprites/black_screen.jpg');
+				game.load.image('getulio','../assets/sprites/getulio.png');
+			}
+
+			var balde;
+			var cursors;	
+			
+			var ufoSpawnTime = 0;
+			var time = 0;
+			var deltatime = 0;
+			
+			var ufos;
+			var ufo;
+			ufosIngame = new Array();
+			var cafe_total = 0;
+			//textos
+			var score;
+			var texto_inicial;
+			
+			var flag_ready = false;
+			var tela_preta;
+			var getulio;
+			
+
+			function create(){		
+				//  This will run in Canvas mode, so let's gain a little speed and display
+				game.renderer.clearBeforeRender = false;
+				game.renderer.roundPixels = true;
+
+				//botoes
+				this.spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+			
+				//  Stop the following keys from propagating up to the browser
+				game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR ]);
+				
+				
+				
+				//  We need arcade physics
+				game.physics.startSystem(Phaser.Physics.ARCADE);
+				
+				//  Set the world (global) gravity
+				game.physics.arcade.gravity.y = 300;
+
+				//  A spacey background
+				game.add.tileSprite(0, 0, game.width, game.height, 'background');
+
+
+				
+				//cafe
+				ufos = game.add.group();
+				ufos.createMultiple(20, 'cafe');
+				ufos.enableBody = true;	
+				ufos.physicsBodyType = Phaser.Physics.ARCADE;
+				ufos.setAll('anchor.x', 0.5);
+				ufos.setAll('anchor.y', 0.5);	
+				//ufos.setAll('alive',true);
+				
+				
+
+				//  BALDE
+				balde = game.add.sprite(450, 450, 'balde');
+				balde.anchor.set(0.5);
+				
+				//boca do balde
+				boca_balde = balde.addChild(game.make.sprite(-50,-30, 'barra_preta'));
+				boca_balde.anchor.set(0);
+				boca_balde.width = 100;
+				boca_balde.height = 10;
+				game.physics.enable(boca_balde, Phaser.Physics.ARCADE);				
+				boca_balde.body.allowGravity=false;
+				boca_balde.alpha=0;
+
+				//  and its physics settings
+				game.physics.enable(balde, Phaser.Physics.ARCADE);
+				balde.body.allowGravity = false;
+
+				balde.body.drag.set(100);
+				balde.body.maxVelocity.set(200);
+
+				//  Game input
+				cursors = game.input.keyboard.createCursorKeys();
+				game.input.keyboard.addKeyCapture([ Phaser.Keyboard.SPACEBAR ]);
+
+			
+				//pontos
+				//bmpText = game.add.bitmapText(200, 100, 'desyrel', 'Phaser & Pixi\nrocking!', 64);
+			
+				score= game.add.text(30, 30, 'Café coletado 0',{fill : 'white'});
+				score.alpha = 0;
+
+ 
+				//tela preta
+				tela_preta = game.add.sprite(450, 400, 'tela_preta');
+				tela_preta.anchor.set(0.5);
+				tela_preta.alpha = 0.8;
+			
+				//getulio
+				getulio = game.add.sprite(725, 450, 'getulio');
+				game.physics.enable(getulio, Phaser.Physics.ARCADE);
+				getulio.body.allowGravity=false;
+				getulio.anchor.set(0.5);
+				
+								
+				texto_inicial = game.add.text(100, 150, 'Olá, eu sou Getúlio Vargas! \n Me ajude a queimar algum café para manter \n o preço no mercado!',{fill : 'white'});
+				
+				
+				
+			}
+
+			function update() {
+				if(this.spaceKey.isDown){				
+					flag_ready = true;					
+					score.alpha = 1;
+					tela_preta.alpha = 0;		
+					texto_inicial.alpha = 0;
+					getulio.body.allowGravity=true;					
+					game.time.now = 0;
+				}				
+			if(flag_ready){
+					
+					
+				
+			
+				
+				
+				
+			
+				//sumir café				
+				ufos.forEachExists(testarBorda, this);
+				ufos.forEachExists(testarBalde,this);
+
+			
+				//Mover o balde com o mouse
+				if (game.input.mousePointer.isDown){
+					
+					balde.x = game.input.mousePointer.x;
+					balde.y = game.input.mousePointer.y;
+
+
+					if(Phaser.Rectangle.contains(balde.body, game.input.x, game.input.y))
+					{
+						balde.body.velocity.setTo(0, 0);
+					}
+				}
+				else
+				{
+					balde.body.velocity.setTo(0, 0);
+				}	
+
+//-----------------------------------------------------------------------------------------------------//
+
+				
+				//spawnar café
+				deltatime = time - Date.now()
+				time = Date.now();
+								
+				if(ufoSpawnTime < game.time.now){
+						
+						
+						game.physics.enable(ufos,Phaser.Physics.ARCADE);
+						ufo = ufos.getFirstExists(false);
+						game.physics.enable(ufo,Phaser.Physics.ARCADE);
+						ufosIngame.push(ufo);
+						
+					if (ufo){						
+						ufo.reset(getRandom(800),-20);
+						ufoSpawnTime += 800;
+					}				
+				}				
+//--------------------------------------------------------------------------------------------
+
+				
+				
+				
+				
+
+				
+			
+
+			}
+
+
+
+			
+
+
+
+			
+			}
+
+			
+			function testarBalde(obj){
+				if(boca_balde.overlap(obj)){
+					obj.exists = false;
+					cafe_total += 1;					
+					score.text = 'Café coletado ' + cafe_total;
+					console.log("pegou o cafe");
+					
+					}					
+				}	
+
+			
+			//função pra randomizar spawn de ufo's
+			function randomizePosition(){
+			
+				var posY = -50;
+				var posX = getRandom(800);
+				console.log(posX);
+				
+				if(posX < 50){
+					posX += 50;
+				}				
+				return posX,posY;	
+			}
+			
+
+			function getRandom(max) {
+				return Math.floor(Math.random() * max + 1)
+			}
+			
+			function screenWrap (balde) {
+
+				if (balde.x < 0)
+				{
+					balde.x = game.width;
+				}
+				else if (balde.x > game.width)
+				{
+					balde.x = 0;
+				}
+
+				if (balde.y < 0)
+				{
+					balde.y = game.height;
+				}
+				else if (balde.y > game.height)
+				{
+					balde.y = 0;
+				}
+
+			}
+
+			function render() {
+			}
+
+			function reciclar_cafe(obj){
+				obj.exists = false;
+			
+			}
+
+			function testarBorda(obj){
+			
+				if(obj.y > 650){
+					obj.exists = false;
+					tela_preta.alpha = 0.8;
+					tela_preta.x = 450;
+					tela_preta.y = 400;
+					texto_inicial.text = 'Você deixou de queimar o café... \n \n Sua pontuação :  ' + cafe_total;
+					texto_inicial.alpha = 1;
+					texto_inicial.x = 200;
+					texto_inicial.y = 230;
+					game.paused = true;					
+				}				
+			}			
+			
+		</script>
+	</body>
+</html>
